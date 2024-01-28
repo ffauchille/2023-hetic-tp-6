@@ -45,8 +45,8 @@ ssh -i <chemin_clee_privee> ubuntu@etudiantXX.floless.fr
 Docker est déjà installé sur votre VM.
 En plus de Docker, un conteneur de Traefik est lancé et correctement configuré.
 
-Voici un schéma de l'infrastrucutre du TP:
-![](images/production.png)
+Voici un schéma de l'infrastrucutre de votre production:
+![](images/prod.png)
 
 
 #### Transférer l'image docker de votre poste de travail vers le serveur distant
