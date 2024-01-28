@@ -100,7 +100,10 @@ Pour push une image docker, vous devez respecter un certain format de `tag`.
 Le format à respecter est le suivant:
 
 ```sh
+# si vous n'êtes PAS sur un Mac avec puce Apple M1 ou M2
 docker image build -t NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:TAG_IMAGE .
+# sinon 
+docker buildx build --platform linux/amd64 -t NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:TAG_IMAGE .
 ```
 
 - Le `nom_de_la_registry` doit être celui de la *Github container registry (ghcr)*: `ghcr.io`
@@ -306,16 +309,12 @@ Pour ouvrir une connexion `ssh` depuis votre *workflow*, vous allez réutiliser 
 
 ```yml
       - name: Deploiement sur la VM chez Scaleway
-        uses: appleboy/ssh-action@v0.1.8
-        env:
-          TAG: ${{ github.sha }}
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          envs: TAG
           script: |
-            echo "Deploiement de la version $TAG"
             docker login ghcr.io -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
             docker pull NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:${{ github.sha }}
             docker container stop mon-slogan && docker container rm mon-slogan || echo "Aucun conteneur à stopper"
