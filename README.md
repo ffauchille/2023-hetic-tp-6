@@ -25,7 +25,7 @@ COPY index.html /usr/share/nginx/html/index.html
 ```
 
 - Buildez et tester votre image sur votre poste de travail:
-  - `docker build -t mon-slogan .`
+  - `docker image build -t mon-slogan .`
   - `docker container run -p 8080:80 mon-slogan`
 - Vous devriez accéder à votre page HTML à l'adresse: http://localhost:8080 
 
@@ -38,24 +38,12 @@ Si c'est le cas, pushez vos changements sur `main`.
 - Récupérez la clé SSH donné par votre professeur
 - Assurez-vous que vous pouvez vous connecter (`etudiantXX` à remplacer par votre identifiant d'étudiant):
 
-> Note: Vos machines ont été détruites entre les deux cours. Vous devez exécuter la commande `ssh-keygen -R etudiantXX.floless.fr`
-> pour supprimer l'historique de connexion avant de vous connecter à nouveau en `ssh` avec la même clé privé à votre machine distante.
-
 ```sh
-ssh-keygen -R etudiantXX.floless.fr
 ssh -i <chemin_clee_privee> ubuntu@etudiantXX.floless.fr
 ```
 
-Votre serveur distant a docker déjà installé.
-En plus de Docker, un conteneur de Traefik est lancé.
-
-> Note: Traefik est un web server (comme Nginx) qui est né pour fonctionner parfaitement avec Docker.
->
-> Traefik inspecte tous les conteneurs qui sont lancés et récupère les [`LABEL`](https://docs.docker.com/config/labels-custom-metadata/) docker des conteneurs.
-> En fonction des `LABEL`, Traefik va générer la configuration pour `reverse-proxy` les requêtes HTTP vers les bons conteneurs.
-> Plus d'informations ici: https://docs.traefik.io/?__hstc=265350736.b8372f9d02e9354a7959f956d9ae00cd.1600363912360.1600363912360.1600363912360.1&__hssc=265350736.1.1600363912360&__hsfp=3215949073
-
-Cela veut dire que vous n'allez **PAS** avoir à installer d'autre serveur web sur votre serveur distant.
+Docker est déjà installé sur votre VM.
+En plus de Docker, un conteneur de Traefik est lancé et correctement configuré.
 
 Voici un schéma de l'infrastrucutre du TP:
 ![](images/production.png)
@@ -91,7 +79,6 @@ Vous allez créer un *Github private access token (PAT)* avec les accès *read/w
     - Selected scopes:
       - `repo` (all)
       - `write:packages`
-      - `delete:packages`
 
 **Gardez le token sur votre poste de travail. Vous ne le reverrez pas.**
 
@@ -102,7 +89,7 @@ Sauver votre *PAT* dans un fichier **en dehors** de votre projet github. C'est u
 Depuis votre poste de travail, vous devez d'abord vous authentifier avec votre *PAT* à la *Github container registry*
 
 ```sh
-cat <chemin_vers_votre_PAT> | docker login ghcr.io -u <identifiant_github> --password-stdin
+cat <chemin_vers_votre_PAT> | docker login ghcr.io -u VOTRE_ID_GITHUB --password-stdin
 ```
 
 Vous devez voir `Login Succeeded` en sortie de la commande.
@@ -113,7 +100,7 @@ Pour push une image docker, vous devez respecter un certain format de `tag`.
 Le format à respecter est le suivant:
 
 ```sh
-docker build -t <nom_de_la_registry>/<identifiant_github>/<nom_du_repertoire>/<nom_image>:<tag_image> .
+docker image build -t NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:TAG_IMAGE .
 ```
 
 - Le `nom_de_la_registry` doit être celui de la *Github container registry (ghcr)*: `ghcr.io`
@@ -125,7 +112,7 @@ docker build -t <nom_de_la_registry>/<identifiant_github>/<nom_du_repertoire>/<n
 Une fois build, vous pouvez pousser l'application (en remplaçant comme dans la commande du dessus):
 
 ```sh
-docker push <nom_de_la_registry>/<identifiant_github>/<nom_du_repertoire>/<nom_image>:<tag_image>
+docker image push NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:TAG_IMAGE
 ```
 
 > Note: Vous devez être dans la même session de terminal que celui où vous avez tapé `docker login`.
@@ -146,21 +133,21 @@ scp -i <chemin_clee_privee> <chemin_PAT> ubuntu@etudiantXX.floless.fr:
 - Authentifiez vous à votre *Github container registry* depuis votre session `ssh` sur votre serveur distant:
 
 ```sh
-cat <chemin_vers_votre_PAT> | docker login ghcr.io -u <identifiant_github> --password-stdin
+cat <chemin_vers_votre_PAT> | docker login ghcr.io -u VOTRE_ID_GITHUB --password-stdin
 ```
 
 - Récupérez votre image docker via la commande `docker pull` (en remplaçant les identifiants comme ci-dessus):
 
 ```sh
-docker pull <nom_de_la_registry>/<identifiant_github>/<nom_du_repertoire>/<nom_image>:<tag_image>
+docker pull NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:TAG_IMAGE
 ```
 
-- When running your container, you need to specify Traefik labels:
+- Voici la liste des labels Traefik que votre conteneur doit spécifier:
 
 ```sh
 "traefik.http.routers.mon-slogan.rule=Host(\`etudiantXX.floless.fr\`)"  # détermine le nom de domaine vers lequel Traefik va reverse proxy les requêtes
 "traefik.http.routers.mon-slogan.tls=true" # Active la connexion SSL (pour activer l'HTTPS)
-"traefik.http.routers.mon-slogan.tls.certresolver=myresolver"  # définit comment récupérer le certificat SSL
+"traefik.http.routers.mon-slogan.tls.certresolver=letsencrypt"  # définit comment récupérer le certificat SSL
 "traefik.enable=true" # autorise Traefik à inspecter ce conteneur
 "traefik.docker.network=web" # définit le réseau docker du conteneur (vous pouvez le voir en tapant la commande `docker network ls`)
 ```
@@ -170,17 +157,17 @@ Tapez la commande suivante pour démarrer le conteneur de votre application depu
 ```sh
   docker container run -d --network web \
     --name mon-slogan \
-    --label "traefik.http.routers.mon-slogan.rule=Host(\`etudiantXX.floless.fr\`)" \
+    --label "traefik.http.routers.mon-slogan.rule=Host(\`mon-slogan.etudiantXX.floless.fr\`)" \
     --label "traefik.http.routers.mon-slogan.tls=true" \
-    --label "traefik.http.routers.mon-slogan.tls.certresolver=myresolver" \
+    --label "traefik.http.routers.mon-slogan.tls.certresolver=letsencrypt" \
     --label "traefik.enable=true" \
     --label "traefik.docker.network=web" \
-    <nom_de_la_registry>/<identifiant_github>/<nom_du_repertoire>/<nom_image>:<tag_image>
+    NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:TAG_IMAGE
 ```
 
-> Note 2: il faut échapper \`etudiantXX.floless.fr\` pour que Treafik interprète cette chaîne de charactère correctement.
+> Note 2: il faut échapper \`mon-slogan.etudiantXX.floless.fr\` pour que Treafik interprète cette chaîne de charactère correctement.
 
-Une fois lancée, vous devriez pouvoir accéder à votre application à l'adresse `https://etudiantXX.floless.fr` (en HTTPS!)
+Une fois lancée, vous devriez pouvoir accéder à votre application à l'adresse `https://mon-slogan.etudiantXX.floless.fr` (en HTTPS!)
 
 ### Étape 4: Automatisez le déploiement
 
@@ -233,7 +220,7 @@ git pull origin main
 - d'avoir lu le fichier `deploy.yml` avec le commentaires de code pour comprendre la strucutre
 
 
-Pour résumer brièvement, un *workflow* est composé :
+Pour résumer brièvement, un *workflow* est composé:
 - d'un nom (`name: ...`) (afin de retrouver votre  *workflow* dans l'onglet `Actions` sur Github)
 - d'un déclancheur (`on: ...`) de *job* (ici, pour tous les push sur la branche `main`)
 - de `jobs` avec un ensemble de `steps`:
@@ -255,8 +242,8 @@ Depuis votre interface github, allez sur:
 Ajoutez les variables suivantes:
 
 ```yml
-DOCKER_USER=<identifiant_github>
-DOCKER_PASSWORD=<votre_PAT>
+DOCKER_USER=VOTRE_ID_GITHUB
+DOCKER_PASSWORD=TOKEN
 SSH_HOST=etudiantXX.floless.fr
 SSH_USER=ubuntu
 SSH_KEY=<votre_clee_privee>
@@ -277,7 +264,7 @@ Ensuite, rajoutez une étape de plus à votre fichier `.github/workflows/deploy.
 
 ```yml
 - name: build de l'image docker 
-  run: docker build -t <nom_de_la_registry>/<identifiant_github>/<nom_du_repertoire>/<nom_image>:${{ github.sha }} .
+  run: docker image build -t NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:${{ github.sha }} .
 ```
 
 À noter que `${{ github.sha }}` comme version de votre image docker. Cette version va être le `hash` de votre commit git; qui représente une version de votre application en correllation avec la version de votre code.
@@ -293,9 +280,9 @@ Adaptez votre étape `build de l'image docker` de votre *workflow* avec:
 ```yml
 - name: build de l'image docker 
   run: | 
-    docker build -t <nom_de_la_registry>/<identifiant_github>/<nom_du_repertoire>/<nom_image>:${{ github.sha }} .
+    docker image build -t NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:${{ github.sha }} .
     docker login ghcr.io -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
-    docker push <nom_de_la_registry>/<identifiant_github>/<nom_du_repertoire>/<nom_image>:${{ github.sha }}
+    docker image push NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:${{ github.sha }}
 ```
 
 Votre *workflow* va:
@@ -330,16 +317,16 @@ Pour ouvrir une connexion `ssh` depuis votre *workflow*, vous allez réutiliser 
           script: |
             echo "Deploiement de la version $TAG"
             docker login ghcr.io -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
-            docker pull <nom_de_la_registry>/<identifiant_github>/<nom_du_repertoire>/<nom_image>:${{ github.sha }}
+            docker pull NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:${{ github.sha }}
             docker container stop mon-slogan && docker container rm mon-slogan || echo "Aucun conteneur à stopper"
             docker container run -d --network web \
               --name mon-slogan \
-              --label "traefik.http.routers.mon-slogan.rule=Host(\`etudiantXX.floless.fr\`)" \
+              --label "traefik.http.routers.mon-slogan.rule=Host(\`mon-slogan.etudiantXX.floless.fr\`)" \
               --label "traefik.http.routers.mon-slogan.tls=true" \
-              --label "traefik.http.routers.mon-slogan.tls.certresolver=myresolver" \
+              --label "traefik.http.routers.mon-slogan.tls.certresolver=letsencrypt" \
               --label "traefik.enable=true" \
               --label "traefik.docker.network=web" \
-              <nom_de_la_registry>/<identifiant_github>/<nom_du_repertoire>/<nom_image>:${{ github.sha }}
+              NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:${{ github.sha }}
 ```
 
 Cette étape:
@@ -354,4 +341,4 @@ Vous devriez être bon pour tester votre déploiement continu!
 
 Pour tester, changez votre fichier `index.html`, puis pushez vos changements sur `main`.
 
-Après l'exécution de votre *workflow*, vous devriez voir la nouvelle version de votre application sur https://etudiantXX.floless.fr
+Après l'exécution de votre *workflow*, vous devriez voir la nouvelle version de votre application sur https://mon-slogan.etudiantXX.floless.fr
