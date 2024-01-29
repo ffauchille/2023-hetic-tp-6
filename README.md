@@ -91,6 +91,8 @@ Depuis votre poste de travail, vous devez d'abord vous authentifier avec votre *
 ```sh
 echo "VOTRE_PAT" | docker login ghcr.io -u VOTRE_ID_GITHUB --password-stdin
 ```
+> Note: `VOTRE_ID_GITHUB` et `VOTRE_ORG_GITHUB` peuvent être retrouvé sur votre page de profile Github:
+> ![](images/votre-org-github.png)
 
 Vous devez voir `Login Succeeded` en sortie de la commande.
 
