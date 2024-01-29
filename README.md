@@ -1,4 +1,4 @@
-# TP#5: Déploiement continu
+# TP#6: Déploiement continu
 
 **Objectifs** : Mettre en place du déploiement continu avec Github Action sur une application toute simple.
  
