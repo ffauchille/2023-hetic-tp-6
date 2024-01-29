@@ -89,7 +89,7 @@ Sauver votre *PAT* dans un fichier **en dehors** de votre projet github. C'est u
 Depuis votre poste de travail, vous devez d'abord vous authentifier avec votre *PAT* à la *Github container registry*
 
 ```sh
-cat <chemin_vers_votre_PAT> | docker login ghcr.io -u VOTRE_ID_GITHUB --password-stdin
+echo "VOTRE_PAT" | docker login ghcr.io -u VOTRE_ID_GITHUB --password-stdin
 ```
 
 Vous devez voir `Login Succeeded` en sortie de la commande.
@@ -101,9 +101,9 @@ Le format à respecter est le suivant:
 
 ```sh
 # si vous n'êtes PAS sur un Mac avec puce Apple M1 ou M2
-docker image build -t NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:TAG_IMAGE .
+docker image build -t NOM_REGISTRY/VOTRE_ORG_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:TAG_IMAGE .
 # sinon 
-docker buildx build --platform linux/amd64 -t NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:TAG_IMAGE .
+docker buildx build --platform linux/amd64 -t NOM_REGISTRY/VOTRE_ORG_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:TAG_IMAGE .
 ```
 
 - Le `nom_de_la_registry` doit être celui de la *Github container registry (ghcr)*: `ghcr.io`
@@ -115,7 +115,7 @@ docker buildx build --platform linux/amd64 -t NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_R
 Une fois build, vous pouvez pousser l'application (en remplaçant comme dans la commande du dessus):
 
 ```sh
-docker image push NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:TAG_IMAGE
+docker image push NOM_REGISTRY/VOTRE_ORG_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:TAG_IMAGE
 ```
 
 > Note: Vous devez être dans la même session de terminal que celui où vous avez tapé `docker login`.
@@ -136,13 +136,13 @@ scp -i <chemin_clee_privee> <chemin_PAT> ubuntu@etudiantXX.floless.fr:
 - Authentifiez vous à votre *Github container registry* depuis votre session `ssh` sur votre serveur distant:
 
 ```sh
-cat <chemin_vers_votre_PAT> | docker login ghcr.io -u VOTRE_ID_GITHUB --password-stdin
+echo "VOTRE_PAT" | docker login ghcr.io -u VOTRE_ID_GITHUB --password-stdin
 ```
 
 - Récupérez votre image docker via la commande `docker pull` (en remplaçant les identifiants comme ci-dessus):
 
 ```sh
-docker pull NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:TAG_IMAGE
+docker pull NOM_REGISTRY/VOTRE_ORG_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:TAG_IMAGE
 ```
 
 - Voici la liste des labels Traefik que votre conteneur doit spécifier:
@@ -165,7 +165,7 @@ Tapez la commande suivante pour démarrer le conteneur de votre application depu
     --label "traefik.http.routers.mon-slogan.tls.certresolver=letsencrypt" \
     --label "traefik.enable=true" \
     --label "traefik.docker.network=web" \
-    NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:TAG_IMAGE
+    NOM_REGISTRY/VOTRE_ORG_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:TAG_IMAGE
 ```
 
 > Note 2: il faut échapper \`mon-slogan.etudiantXX.floless.fr\` pour que Treafik interprète cette chaîne de charactère correctement.
@@ -267,7 +267,7 @@ Ensuite, rajoutez une étape de plus à votre fichier `.github/workflows/deploy.
 
 ```yml
 - name: build de l'image docker 
-  run: docker image build -t NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:${{ github.sha }} .
+  run: docker image build -t NOM_REGISTRY/VOTRE_ORG_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:${{ github.sha }} .
 ```
 
 À noter que `${{ github.sha }}` comme version de votre image docker. Cette version va être le `hash` de votre commit git; qui représente une version de votre application en correllation avec la version de votre code.
@@ -283,9 +283,9 @@ Adaptez votre étape `build de l'image docker` de votre *workflow* avec:
 ```yml
 - name: build de l'image docker 
   run: | 
-    docker image build -t NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:${{ github.sha }} .
+    docker image build -t NOM_REGISTRY/VOTRE_ORG_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:${{ github.sha }} .
     docker login ghcr.io -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
-    docker image push NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:${{ github.sha }}
+    docker image push NOM_REGISTRY/VOTRE_ORG_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:${{ github.sha }}
 ```
 
 Votre *workflow* va:
@@ -316,7 +316,7 @@ Pour ouvrir une connexion `ssh` depuis votre *workflow*, vous allez réutiliser 
           key: ${{ secrets.SSH_KEY }}
           script: |
             docker login ghcr.io -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWORD }}
-            docker pull NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:${{ github.sha }}
+            docker pull NOM_REGISTRY/VOTRE_ORG_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:${{ github.sha }}
             docker container stop mon-slogan && docker container rm mon-slogan || echo "Aucun conteneur à stopper"
             docker container run -d --network web \
               --name mon-slogan \
@@ -325,7 +325,7 @@ Pour ouvrir une connexion `ssh` depuis votre *workflow*, vous allez réutiliser 
               --label "traefik.http.routers.mon-slogan.tls.certresolver=letsencrypt" \
               --label "traefik.enable=true" \
               --label "traefik.docker.network=web" \
-              NOM_REGISTRY/VOTRE_ID_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:${{ github.sha }}
+              NOM_REGISTRY/VOTRE_ORG_GITHUB/NOM_REPERTOIRE/NOM_IMAGE:${{ github.sha }}
 ```
 
 Cette étape:
